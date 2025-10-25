@@ -6,8 +6,17 @@ from functools import wraps
 import uuid
 from datetime import datetime, timedelta
 import random
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
+
+
+#MongoDB
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri)
+db = client["vaxtrax"]  # Database name
+collection = db["scans"]
 
 # Secret key for session
 app.secret_key = os.urandom(24)
@@ -355,6 +364,18 @@ def add_vaccine():
     }
     
     return jsonify({"success": True, "batch": batches[batch_id]})
+
+@app.route('/add_scan', methods=['POST'])
+def add_scan():
+    data = request.get_json()
+    collection.insert_one(data)
+    return jsonify({"message": "Scan added successfully!"}), 201
+
+@app.route('/get_scans/<batch_no>', methods=['GET'])
+def get_scans(batch_no):
+    scans = list(collection.find({"batch_no": batch_no}, {"_id": 0}))
+    return jsonify(scans)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
