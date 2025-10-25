@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaxTrax - Vaccine Tracking System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-syringe"></i> VaxTrax</h1>
+            <div class="search-container">
+                <input type="text" id="batchSearch" placeholder="Search Batch ID...">
+                <button id="searchBtn"><i class="fas fa-search"></i></button>
+            </div>
+        </header>
+
+        <main>
+            <section class="dashboard-section">
+                <h2>Dashboard Overview</h2>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <h3>Total Batches</h3>
+                        <p id="totalBatches">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>In Transit</h3>
+                        <p id="inTransit">0</p>
+                    </div>
+                    <div class="stat-card safe">
+                        <h3>Safe</h3>
+                        <p id="safeBatches">0</p>
+                    </div>
+                    <div class="stat-card at-risk">
+                        <h3>At Risk</h3>
+                        <p id="atRiskBatches">0</p>
+                    </div>
+                    <div class="stat-card unsafe">
+                        <h3>Unsafe</h3>
+                        <p id="unsafeBatches">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="live-data-section">
+                <h2>Live Batch Data <span class="refresh-indicator"><i class="fas fa-sync-alt"></i> Auto-refreshing</span></h2>
+                <div class="batch-cards" id="batchContainer">
+                    <!-- Batch cards will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <section class="batch-details-section" id="batchDetailsSection">
+                <h2>Batch Details</h2>
+                <div class="batch-details-container">
+                    <div class="batch-header">
+                        <h3 id="detailBatchId">Select a batch to view details</h3>
+                        <span class="status-badge" id="detailStatus">-</span>
+                    </div>
+                    
+                    <div class="detail-row">
+                        <div class="detail-item">
+                            <h4>Current Temperature</h4>
+                            <p id="detailTemp">-</p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>Current Location</h4>
+                            <p id="detailLocation">-</p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>Current Stage</h4>
+                            <p id="detailStage">-</p>
+                        </div>
+                    </div>
+
+                    <div class="stage-tracker">
+                        <h4>Delivery Chain Progress</h4>
+                        <div class="stages">
+                            <div class="stage" id="stageFactory">
+                                <div class="stage-icon"><i class="fas fa-industry"></i></div>
+                                <p>Factory</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageHub">
+                                <div class="stage-icon"><i class="fas fa-warehouse"></i></div>
+                                <p>Hub</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageStorage">
+                                <div class="stage-icon"><i class="fas fa-box"></i></div>
+                                <p>Storage</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageHospital">
+                                <div class="stage-icon"><i class="fas fa-hospital"></i></div>
+                                <p>Hospital</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stagePatient">
+                                <div class="stage-icon"><i class="fas fa-user"></i></div>
+                                <p>Patient</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scan-history">
+                        <h4>Scan History</h4>
+                        <table class="scan-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Location</th>
+                                    <th>Scanned By</th>
+                                    <th>Device</th>
+                                    <th>Temperature</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanHistoryBody">
+                                <!-- Scan history rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2023 VaxTrax - Vaccine Tracking System</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

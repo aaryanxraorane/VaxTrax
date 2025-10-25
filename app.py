@@ -1,0 +1,204 @@
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import os
+import json
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+import uuid
+from datetime import datetime, timedelta
+import random
+
+app = Flask(__name__, template_folder='templates', static_folder='static')
+
+# Secret key for session
+app.secret_key = os.urandom(24)
+
+# Mock database for users (in a real app, use a proper database)
+users = {
+    "admin@vaxtrax.com": {
+        "password": generate_password_hash("admin123"),
+        "name": "Admin User",
+        "role": "admin"
+    },
+    "user@vaxtrax.com": {
+        "password": generate_password_hash("user123"),
+        "name": "Regular User",
+        "role": "user"
+    }
+}
+
+# Mock database for vaccine batches (in a real app, use a proper database)
+batches = {}
+
+# Generate mock batch data
+def generate_mock_batches():
+    global batches
+    batch_ids = [f"VAX-2023-{str(i).zfill(3)}" for i in range(1, 6)]
+    stages = ["Factory", "Hub", "Storage", "Hospital", "Patient"]
+    locations = [
+        "51.5074° N, 0.1278° W",  # London
+        "40.7128° N, 74.0060° W",  # New York
+        "34.0522° N, 118.2437° W",  # Los Angeles
+        "41.8781° N, 87.6298° W",  # Chicago
+        "19.4326° N, 99.1332° W"   # Mexico City
+    ]
+    
+    for i, batch_id in enumerate(batch_ids):
+        # Determine status based on temperature
+        temperature = round(random.uniform(-19.0, -12.0), 1)
+        if temperature > -15:
+            status = "Unsafe"
+        elif temperature > -17:
+            status = "At Risk"
+        else:
+            status = "Safe"
+        
+        # Create scan history
+        scan_history = []
+        current_stage_index = min(i % len(stages), len(stages) - 1)
+        
+        for stage_idx in range(current_stage_index + 1):
+            stage = stages[stage_idx]
+            days_ago = (current_stage_index - stage_idx) * 2
+            scan_temp = round(temperature + random.uniform(-0.5, 0.5), 1)
+            
+            # Determine status for this scan
+            if scan_temp > -15:
+                scan_status = "Unsafe"
+            elif scan_temp > -17:
+                scan_status = "At Risk"
+            else:
+                scan_status = "Safe"
+                
+            scan = {
+                "timestamp": (datetime.now() - timedelta(days=days_ago, minutes=random.randint(0, 360))).isoformat(),
+                "location": locations[stage_idx % len(locations)],
+                "scannedBy": f"Operator {random.randint(1, 10)}",
+                "device": f"NFC Scanner #{random.randint(1, 30)}",
+                "temperature": scan_temp,
+                "status": scan_status,
+                "stage": stage
+            }
+            scan_history.append(scan)
+        
+        batches[batch_id] = {
+            "id": batch_id,
+            "temperature": temperature,
+            "location": locations[i % len(locations)],
+            "stage": stages[current_stage_index],
+            "status": status,
+            "lastUpdated": datetime.now().isoformat(),
+            "scanHistory": scan_history
+        }
+
+# Generate initial batch data
+generate_mock_batches()
+
+# Login required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Admin required decorator
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session or session['role'] != 'admin':
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Routes
+@app.route('/')
+def index():
+    if 'user' in session:
+        if session['role'] == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        if email in users and check_password_hash(users[email]['password'], password):
+            session['user'] = email
+            session['name'] = users[email]['name']
+            session['role'] = users[email]['role']
+            
+            if users[email]['role'] == 'admin':
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('user_dashboard'))
+        else:
+            error = 'Invalid credentials. Please try again.'
+    
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    session.pop('name', None)
+    session.pop('role', None)
+    return redirect(url_for('login'))
+
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    return render_template('admin_dashboard.html', name=session['name'])
+
+@app.route('/user')
+@login_required
+def user_dashboard():
+    return render_template('user_dashboard.html', name=session['name'])
+
+# API Routes
+@app.route('/api/batches', methods=['GET'])
+@login_required
+def get_batches():
+    if session['role'] == 'admin':
+        return jsonify(list(batches.values()))
+    else:
+        # For regular users, only return batches they search for
+        return jsonify([])
+
+@app.route('/api/batches/<batch_id>', methods=['GET'])
+@login_required
+def get_batch(batch_id):
+    if batch_id in batches:
+        return jsonify(batches[batch_id])
+    else:
+        return jsonify({"error": "Batch not found"}), 404
+
+@app.route('/api/refresh-data', methods=['GET'])
+@login_required
+def refresh_data():
+    # Simulate data updates
+    for batch_id in batches:
+        # Randomly adjust temperature slightly
+        temp_change = round((random.random() - 0.5) * 0.3, 1)
+        batches[batch_id]['temperature'] = round(batches[batch_id]['temperature'] + temp_change, 1)
+        
+        # Update status based on temperature
+        if batches[batch_id]['temperature'] > -15:
+            batches[batch_id]['status'] = 'Unsafe'
+        elif batches[batch_id]['temperature'] > -17:
+            batches[batch_id]['status'] = 'At Risk'
+        else:
+            batches[batch_id]['status'] = 'Safe'
+        
+        # Update last updated timestamp
+        batches[batch_id]['lastUpdated'] = datetime.now().isoformat()
+    
+    return jsonify({"success": True})
+
+if __name__ == '__main__':
+    app.run(debug=True)
