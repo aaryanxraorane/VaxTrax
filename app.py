@@ -23,7 +23,18 @@ users = {
         "password": generate_password_hash("user123"),
         "name": "Regular User",
         "role": "user"
+    },
+    "company@vaxtrax.com": {
+        "password": generate_password_hash("company123"),
+        "name": "Company User",
+        "role": "company"
     }
+}
+
+# Default temperature limits for vaccines
+default_temp_limits = {
+    "min": -20.0,
+    "max": -15.0
 }
 
 # Mock database for vaccine batches (in a real app, use a proper database)
@@ -111,15 +122,32 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Company required decorator
+def company_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session or session['role'] != 'company':
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Routes
 @app.route('/')
 def index():
     if 'user' in session:
         if session['role'] == 'admin':
             return redirect(url_for('admin_dashboard'))
+        elif session['role'] == 'company':
+            return redirect(url_for('company_dashboard'))
         else:
             return redirect(url_for('user_dashboard'))
     return redirect(url_for('login'))
+
+@app.route('/company')
+@login_required
+@company_required
+def company_dashboard():
+    return render_template('company_dashboard.html', name=session['name'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -135,6 +163,8 @@ def login():
             
             if users[email]['role'] == 'admin':
                 return redirect(url_for('admin_dashboard'))
+            elif users[email]['role'] == 'company':
+                return redirect(url_for('company_dashboard'))
             else:
                 return redirect(url_for('user_dashboard'))
         else:
@@ -199,6 +229,132 @@ def refresh_data():
         batches[batch_id]['lastUpdated'] = datetime.now().isoformat()
     
     return jsonify({"success": True})
+
+# Company API Routes
+@app.route('/api/company/batches', methods=['GET'])
+@login_required
+@company_required
+def get_company_batches():
+    return jsonify(list(batches.values()))
+
+@app.route('/api/company/update-status/<batch_id>', methods=['POST'])
+@login_required
+@company_required
+def update_batch_status(batch_id):
+    if batch_id not in batches:
+        return jsonify({"error": "Batch not found"}), 404
+    
+    data = request.json
+    if 'status' not in data or data['status'] not in ['Safe', 'At Risk', 'Unsafe']:
+        return jsonify({"error": "Invalid status value"}), 400
+    
+    batches[batch_id]['status'] = data['status']
+    
+    # Add a new scan entry
+    new_scan = {
+        "timestamp": datetime.now().isoformat(),
+        "location": batches[batch_id]['location'],
+        "scannedBy": session['name'],
+        "device": f"Web Interface",
+        "temperature": batches[batch_id]['temperature'],
+        "status": data['status'],
+        "stage": batches[batch_id]['stage']
+    }
+    
+    batches[batch_id]['scanHistory'].append(new_scan)
+    batches[batch_id]['lastUpdated'] = datetime.now().isoformat()
+    
+    return jsonify({"success": True, "batch": batches[batch_id]})
+
+@app.route('/api/company/update-stage/<batch_id>', methods=['POST'])
+@login_required
+@company_required
+def update_batch_stage(batch_id):
+    if batch_id not in batches:
+        return jsonify({"error": "Batch not found"}), 404
+    
+    data = request.json
+    stages = ["Factory", "Hub", "Storage", "Hospital", "Patient"]
+    
+    if 'stage' not in data or data['stage'] not in stages:
+        return jsonify({"error": "Invalid stage value"}), 400
+    
+    batches[batch_id]['stage'] = data['stage']
+    
+    # Add a new scan entry
+    new_scan = {
+        "timestamp": datetime.now().isoformat(),
+        "location": batches[batch_id]['location'],
+        "scannedBy": session['name'],
+        "device": f"Web Interface",
+        "temperature": batches[batch_id]['temperature'],
+        "status": batches[batch_id]['status'],
+        "stage": data['stage']
+    }
+    
+    batches[batch_id]['scanHistory'].append(new_scan)
+    batches[batch_id]['lastUpdated'] = datetime.now().isoformat()
+    
+    return jsonify({"success": True, "batch": batches[batch_id]})
+
+@app.route('/api/company/add-vaccine', methods=['POST'])
+@login_required
+@company_required
+def add_vaccine():
+    data = request.json
+    
+    # Validate required fields
+    required_fields = ['location', 'stage']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+    
+    # Generate a new batch ID
+    batch_count = len(batches) + 1
+    batch_id = f"VAX-{datetime.now().year}-{str(batch_count).zfill(3)}"
+    
+    # Get temperature limits
+    temp_min = data.get('temp_min', default_temp_limits['min'])
+    temp_max = data.get('temp_max', default_temp_limits['max'])
+    
+    # Generate a random temperature within the specified limits
+    temperature = round(random.uniform(temp_min, temp_max), 1)
+    
+    # Determine status based on temperature
+    if temperature > temp_max:
+        status = "Unsafe"
+    elif temperature > (temp_min + (temp_max - temp_min) / 2):
+        status = "At Risk"
+    else:
+        status = "Safe"
+    
+    # Create initial scan
+    initial_scan = {
+        "timestamp": datetime.now().isoformat(),
+        "location": data['location'],
+        "scannedBy": session['name'],
+        "device": "Web Interface",
+        "temperature": temperature,
+        "status": status,
+        "stage": data['stage']
+    }
+    
+    # Create the new batch
+    batches[batch_id] = {
+        "id": batch_id,
+        "temperature": temperature,
+        "location": data['location'],
+        "stage": data['stage'],
+        "status": status,
+        "lastUpdated": datetime.now().isoformat(),
+        "scanHistory": [initial_scan],
+        "tempLimits": {
+            "min": temp_min,
+            "max": temp_max
+        }
+    }
+    
+    return jsonify({"success": True, "batch": batches[batch_id]})
 
 if __name__ == '__main__':
     app.run(debug=True)

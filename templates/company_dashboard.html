@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaxTrax - Company Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-syringe"></i> VaxTrax</h1>
+            <div class="user-info">
+                <span>Welcome, {{ name }}</span>
+                <a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </header>
+
+        <div class="search-container">
+            <input type="text" id="batchSearch" placeholder="Enter Batch ID...">
+            <button id="searchBtn"><i class="fas fa-search"></i></button>
+        </div>
+
+        <main>
+            <section class="company-controls">
+                <div class="add-vaccine-form">
+                    <h2>Add New Vaccine</h2>
+                    <div class="form-group">
+                        <label for="location">Location:</label>
+                        <input type="text" id="location" placeholder="e.g., 51.5074° N, 0.1278° W">
+                    </div>
+                    <div class="form-group">
+                        <label for="stage">Stage:</label>
+                        <select id="stage">
+                            <option value="Factory">Factory</option>
+                            <option value="Hub">Hub</option>
+                            <option value="Storage">Storage</option>
+                            <option value="Hospital">Hospital</option>
+                            <option value="Patient">Patient</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="tempMin">Min Temperature (°C):</label>
+                        <input type="number" id="tempMin" value="-20.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="tempMax">Max Temperature (°C):</label>
+                        <input type="number" id="tempMax" value="-15.0" step="0.1">
+                    </div>
+                    <button id="addVaccineBtn">Add Vaccine</button>
+                </div>
+                
+                <div class="batch-list">
+                    <h2>Vaccine Batches</h2>
+                    <div id="batchCards" class="batch-cards"></div>
+                </div>
+            </section>
+
+            <section class="batch-details-section" id="batchDetailsSection">
+                <h2>Batch Details</h2>
+                <div class="batch-details-container">
+                    <div class="batch-header">
+                        <h3 id="detailBatchId">Enter a batch ID to view details</h3>
+                        <span class="status-badge" id="detailStatus">-</span>
+                    </div>
+                    
+                    <div class="detail-row">
+                        <div class="detail-item">
+                            <h4>Current Temperature</h4>
+                            <p id="detailTemp">-</p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>Current Location</h4>
+                            <p id="detailLocation">-</p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>Current Stage</h4>
+                            <p id="detailStage">-</p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>Temperature Limits</h4>
+                            <p id="detailTempLimits">-</p>
+                        </div>
+                    </div>
+
+                    <div class="company-actions">
+                        <div class="action-group">
+                            <h4>Update Status</h4>
+                            <div class="status-buttons">
+                                <button class="status-btn safe" data-status="Safe">Safe</button>
+                                <button class="status-btn at-risk" data-status="At Risk">At Risk</button>
+                                <button class="status-btn unsafe" data-status="Unsafe">Unsafe</button>
+                            </div>
+                        </div>
+                        <div class="action-group">
+                            <h4>Update Stage</h4>
+                            <select id="updateStage">
+                                <option value="Factory">Factory</option>
+                                <option value="Hub">Hub</option>
+                                <option value="Storage">Storage</option>
+                                <option value="Hospital">Hospital</option>
+                                <option value="Patient">Patient</option>
+                            </select>
+                            <button id="updateStageBtn">Update</button>
+                        </div>
+                    </div>
+
+                    <div class="stage-tracker">
+                        <h4>Delivery Chain Progress</h4>
+                        <div class="stages">
+                            <div class="stage" id="stageFactory">
+                                <div class="stage-icon"><i class="fas fa-industry"></i></div>
+                                <p>Factory</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageHub">
+                                <div class="stage-icon"><i class="fas fa-warehouse"></i></div>
+                                <p>Hub</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageStorage">
+                                <div class="stage-icon"><i class="fas fa-box"></i></div>
+                                <p>Storage</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stageHospital">
+                                <div class="stage-icon"><i class="fas fa-hospital"></i></div>
+                                <p>Hospital</p>
+                            </div>
+                            <div class="stage-connector"></div>
+                            <div class="stage" id="stagePatient">
+                                <div class="stage-icon"><i class="fas fa-user"></i></div>
+                                <p>Patient</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scan-history">
+                        <h4>Scan History</h4>
+                        <table class="scan-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Location</th>
+                                    <th>Scanned By</th>
+                                    <th>Temperature</th>
+                                    <th>Status</th>
+                                    <th>Stage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanHistoryBody">
+                                <!-- Scan history rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2023 VaxTrax - Vaccine Tracking System</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/company.js') }}"></script>
+</body>
+</html>
