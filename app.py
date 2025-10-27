@@ -9,6 +9,8 @@ import random
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
+load_dotenv()
+
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 
@@ -382,4 +384,5 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
