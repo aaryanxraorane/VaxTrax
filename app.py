@@ -376,6 +376,10 @@ def get_scans(batch_no):
     scans = list(collection.find({"batch_no": batch_no}, {"_id": 0}))
     return jsonify(scans)
 
+@app.route('/healthz')
+def health():
+    return "OK", 200
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
